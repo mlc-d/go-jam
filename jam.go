@@ -188,7 +188,7 @@ func VerifyToken(ja *Jam, tokenString string) (jwt.Token, error) {
 	return token, nil
 }
 
-func (ja *Jam) Encode(claims map[string]interface{}) (t jwt.Token, tokenString string, err error) {
+func (ja *Jam) Encode(claims map[string]any) (t jwt.Token, tokenString string, err error) {
 	t = jwt.New()
 	for k, v := range claims {
 		t.Set(k, v)
@@ -258,11 +258,11 @@ func NewContext(ctx context.Context, t jwt.Token, err error) context.Context {
 	return ctx
 }
 
-func FromContext(ctx context.Context) (jwt.Token, map[string]interface{}, error) {
+func FromContext(ctx context.Context) (jwt.Token, map[string]any, error) {
 	token, _ := ctx.Value(TokenCtxKey).(jwt.Token)
 
 	var err error
-	var claims map[string]interface{}
+	var claims map[string]any
 
 	if token != nil {
 		claims, err = token.AsMap(context.Background())
@@ -270,7 +270,7 @@ func FromContext(ctx context.Context) (jwt.Token, map[string]interface{}, error)
 			return token, nil, err
 		}
 	} else {
-		claims = map[string]interface{}{}
+		claims = map[string]any{}
 	}
 
 	err, _ = ctx.Value(ErrorCtxKey).(error)
@@ -294,22 +294,22 @@ func ExpiresIn(tm time.Duration) int64 {
 }
 
 // SetIssuedAt Set issued at ("iat") to specified time in the claims
-func SetIssuedAt(claims map[string]interface{}, tm time.Time) {
+func SetIssuedAt(claims map[string]any, tm time.Time) {
 	claims["iat"] = tm.UTC().Unix()
 }
 
 // SetIssuedNow Set issued at ("iat") to present time in the claims
-func SetIssuedNow(claims map[string]interface{}) {
+func SetIssuedNow(claims map[string]any) {
 	claims["iat"] = EpochNow()
 }
 
 // SetExpiration Set expiration time ("exp") in the claims
-func SetExpiration(claims map[string]interface{}, tm time.Time) {
+func SetExpiration(claims map[string]any, tm time.Time) {
 	claims["exp"] = tm.UTC().Unix()
 }
 
 // SetExpiresIn Set Expiration Time ("exp") in the claims to some duration from the present time
-func SetExpiresIn(claims map[string]interface{}, tm time.Duration) {
+func SetExpiresIn(claims map[string]any, tm time.Duration) {
 	claims["exp"] = ExpiresIn(tm)
 }
 
@@ -360,7 +360,7 @@ func TokenFromParam(r *http.Request, j *Jam) string {
 }
 
 // contextKey is a value for use with context.WithValue. It's used as
-// a pointer, so it fits in an interface{} without allocation. This technique
+// a pointer, so it fits in an any without allocation. This technique
 // for defining context keys was copied from Go 1.7's new use of context in net/http.
 type contextKey struct {
 	name string
