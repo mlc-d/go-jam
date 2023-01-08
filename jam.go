@@ -15,7 +15,9 @@ import (
 type TokenLookup string
 
 const (
-	// Supported values for SignatureAlgorithm
+	/*
+		Supported values for SignatureAlgorithm
+	*/
 	ES256  jwa.SignatureAlgorithm = "ES256"  // ECDSA using P-256 and SHA-256
 	ES256K jwa.SignatureAlgorithm = "ES256K" // ECDSA using secp256k1 and SHA-256
 	ES384  jwa.SignatureAlgorithm = "ES384"  // ECDSA using P-384 and SHA-384
@@ -24,7 +26,9 @@ const (
 	HS256  jwa.SignatureAlgorithm = "HS256"  // HMAC using SHA-256
 	HS384  jwa.SignatureAlgorithm = "HS384"  // HMAC using SHA-384
 	HS512  jwa.SignatureAlgorithm = "HS512"  // HMAC using SHA-512
-	// NoSignature jwa.SignatureAlgorithm = "none" /*Not supported,*/
+	/*
+		NoSignature jwa.SignatureAlgorithm = "none" Not supported
+	*/
 	PS256 jwa.SignatureAlgorithm = "PS256" // RSASSA-PSS using SHA256 and MGF1-SHA256
 	PS384 jwa.SignatureAlgorithm = "PS384" // RSASSA-PSS using SHA384 and MGF1-SHA384
 	PS512 jwa.SignatureAlgorithm = "PS512" // RSASSA-PSS using SHA512 and MGF1-SHA512
@@ -138,6 +142,11 @@ func Verifier(ja *Jam) func(http.Handler) http.Handler {
 	return Verify(ja, ja.extractors...)
 }
 
+// Verify is the underlying implementation of [Verifier].
+// It takes the request and verify if it has a token; if it does,
+// then this function will save that information to the request's
+// context so the token can be used by other middlewares or parts
+// of the application dealing with that request.
 func Verify(ja *Jam, extractors ...Extractor) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +159,7 @@ func Verify(ja *Jam, extractors ...Extractor) func(http.Handler) http.Handler {
 	}
 }
 
+// VerifyRequest checks if the request contains a token, using the provided extractors.
 func VerifyRequest(ja *Jam, r *http.Request, extractors ...Extractor) (jwt.Token, error) {
 	var tokenString string
 
@@ -169,6 +179,8 @@ func VerifyRequest(ja *Jam, r *http.Request, extractors ...Extractor) (jwt.Token
 	return VerifyToken(ja, tokenString)
 }
 
+// VerifyToken takes a token string and checks if it's valid
+// (e.g. not expired, correct signature, etc).
 func VerifyToken(ja *Jam, tokenString string) (jwt.Token, error) {
 	// Decode & verify the token
 	token, err := ja.Decode(tokenString)
@@ -188,6 +200,7 @@ func VerifyToken(ja *Jam, tokenString string) (jwt.Token, error) {
 	return token, nil
 }
 
+// Encode creates a jwt.Token and encode the given payload.
 func (ja *Jam) Encode(claims map[string]any) (t jwt.Token, tokenString string, err error) {
 	t = jwt.New()
 	for k, v := range claims {
@@ -201,14 +214,17 @@ func (ja *Jam) Encode(claims map[string]any) (t jwt.Token, tokenString string, e
 	return
 }
 
+// Decode takes a token string and decodes it.
 func (ja *Jam) Decode(tokenString string) (jwt.Token, error) {
 	return ja.parse([]byte(tokenString))
 }
 
+// sign envelope for [jwt.Sign].
 func (ja *Jam) sign(token jwt.Token) ([]byte, error) {
 	return jwt.Sign(token, jwt.WithKey(ja.alg, ja.signKey))
 }
 
+// parse envelope for [jwt.Parse].
 func (ja *Jam) parse(payload []byte) (jwt.Token, error) {
 	// we disable validation here because we use jwt.Validate to validate tokens
 	return jwt.Parse(payload, ja.verifier, jwt.WithValidate(false))
@@ -252,12 +268,16 @@ func Authenticator(next http.Handler) http.Handler {
 	})
 }
 
+// NewContext adds the token and the error to the given context.
 func NewContext(ctx context.Context, t jwt.Token, err error) context.Context {
 	ctx = context.WithValue(ctx, TokenCtxKey, t)
 	ctx = context.WithValue(ctx, ErrorCtxKey, err)
 	return ctx
 }
 
+// FromContext reads the context and tries to find the token; if it exists,
+// then the function tries to extract its payload and also the error from the
+// parent context (if any).
 func FromContext(ctx context.Context) (jwt.Token, map[string]any, error) {
 	token, _ := ctx.Value(TokenCtxKey).(jwt.Token)
 
@@ -313,6 +333,8 @@ func SetExpiresIn(claims map[string]any, tm time.Duration) {
 	claims["exp"] = ExpiresIn(tm)
 }
 
+// Extractor is the standard function type (signature) used to check a
+// request and try to extract a token from a specific part of it.
 type Extractor func(*http.Request, *Jam) string
 
 // TokenFromHeader tries to retrieve the token string from the
